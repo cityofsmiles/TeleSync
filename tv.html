@@ -38,9 +38,10 @@
     const status = document.getElementById("status");
 
     function padPage(n) {
-      // pdftoppm outputs slide-1.png, slide-2.png ... adjust padding
-      // to match actual output (pdftoppm pads based on total page count)
-      return n;
+      // pdftoppm zero-pads based on total page count, e.g. slide-01.png,
+      // slide-02.png ... slide-10.png. 2 digits covers up to 99 slides;
+      // bump to 3 if you ever have 100+.
+      return String(n).padStart(2, "0");
     }
 
     function showPage(n) {
