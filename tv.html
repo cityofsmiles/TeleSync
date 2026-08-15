@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Slide Viewer</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    background: #000; overflow: hidden;
+  }
+  #slide {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    display: block;
+    margin: 0 auto;
+  }
+  #status {
+    position: fixed; bottom: 8px; right: 12px;
+    color: #444; font-family: sans-serif; font-size: 14px;
+  }
+</style>
+</head>
+<body>
+  <img id="slide" src="" alt="slide">
+  <div id="status">connecting...</div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const deckId = params.get("deck");
+    const topic = params.get("topic");
+
+    if (!deckId || !topic) {
+      document.getElementById("status").textContent = "Missing deck/topic in URL";
+    }
+
+    const deckBase = `https://cityofsmiles.github.io/slide-decks/${deckId}/`;
+    const img = document.getElementById("slide");
+    const status = document.getElementById("status");
+
+    function padPage(n) {
+      // pdftoppm outputs slide-1.png, slide-2.png ... adjust padding
+      // to match actual output (pdftoppm pads based on total page count)
+      return n;
+    }
+
+    function showPage(n) {
+      img.src = `${deckBase}slide-${padPage(n)}.png?t=${Date.now()}`;
+      status.textContent = `slide ${n}`;
+    }
+
+    function connect() {
+      const es = new EventSource(`https://ntfy.sh/${topic}/sse`);
+
+      es.onopen = () => { status.textContent = "connected"; };
+
+      es.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          const msg = JSON.parse(data.message);
+          if (msg.page) showPage(msg.page);
+        } catch (e) {
+          console.error("bad ntfy message", e);
+        }
+      };
+
+      es.onerror = () => {
+        status.textContent = "disconnected, retrying...";
+        es.close();
+        setTimeout(connect, 3000);
+      };
+    }
+
+    if (deckId && topic) {
+      showPage(1);
+      connect();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Slide Remote</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #fff; color: #000;
+    font-family: sans-serif;
+    display: flex; flex-direction: column;
+  }
+  #pageDisplay {
+    text-align: center;
+    font-size: 28px;
+    padding: 20px 0;
+    border-bottom: 2px solid #000;
+  }
+  #buttons {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  button {
+    flex: 1;
+    font-size: 36px;
+    border: none;
+    border-bottom: 2px solid #000;
+    background: #fff;
+    color: #000;
+  }
+  button:active {
+    background: #000;
+    color: #fff;
+  }
+  #prevBtn { border-bottom: 2px solid #000; }
+  #nextBtn { border-bottom: none; }
+  #jumpBar {
+    display: flex;
+    border-bottom: 2px solid #000;
+  }
+  #jumpInput {
+    flex: 2;
+    font-size: 28px;
+    border: none;
+    border-right: 2px solid #000;
+    padding: 10px;
+    text-align: center;
+  }
+  #jumpBtn {
+    flex: 1;
+    font-size: 28px;
+    border: none;
+    background: #fff;
+    color: #000;
+  }
+  #jumpBtn:active {
+    background: #000;
+    color: #fff;
+  }
+</style>
+</head>
+<body>
+  <div id="pageDisplay">Slide 1 / -</div>
+  <div id="jumpBar">
+    <input id="jumpInput" type="number" inputmode="numeric" min="1" placeholder="Page #">
+    <button id="jumpBtn">GO</button>
+  </div>
+  <div id="buttons">
+    <button id="prevBtn">&#9664; PREV</button>
+    <button id="nextBtn">NEXT &#9654;</button>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const topic = params.get("topic");
+    const totalPages = parseInt(params.get("pages") || "0", 10);
+
+    let currentPage = 1;
+    const display = document.getElementById("pageDisplay");
+
+    function updateDisplay() {
+      display.textContent = `Slide ${currentPage} / ${totalPages || "?"}`;
+    }
+
+    function sendPage(n) {
+      if (n < 1) n = 1;
+      if (totalPages && n > totalPages) n = totalPages;
+      currentPage = n;
+      updateDisplay();
+
+      fetch(`https://ntfy.sh/${topic}`, {
+        method: "POST",
+        body: JSON.stringify({ page: currentPage }),
+      }).catch((err) => {
+        // Fallback: some old Kindle browsers may fail on fetch/CORS.
+        // Retry once via a basic XHR as a fallback path.
+        try {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", `https://ntfy.sh/${topic}`, true);
+          xhr.send(JSON.stringify({ page: currentPage }));
+        } catch (e) {
+          console.error("send failed", e);
+        }
+      });
+    }
+
+    document.getElementById("prevBtn").addEventListener("click", () => {
+      sendPage(currentPage - 1);
+    });
+    document.getElementById("nextBtn").addEventListener("click", () => {
+      sendPage(currentPage + 1);
+    });
+
+    const jumpInput = document.getElementById("jumpInput");
+    const jumpBtn = document.getElementById("jumpBtn");
+
+    function doJump() {
+      const val = parseInt(jumpInput.value, 10);
+      if (!isNaN(val)) {
+        sendPage(val);
+      }
+      jumpInput.value = "";
+      jumpInput.blur(); // closes the on-screen keyboard on Kindle
+    }
+
+    jumpBtn.addEventListener("click", doJump);
+    jumpInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") doJump();
+    });
+
+    updateDisplay();
+  </script>
+</body>
+</html>
